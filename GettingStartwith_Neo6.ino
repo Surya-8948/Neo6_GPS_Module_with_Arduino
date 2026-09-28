@@ -1,3 +1,4 @@
+// for esp8266 use D pin mapping , 3.3v and 5v both can be applied
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 
