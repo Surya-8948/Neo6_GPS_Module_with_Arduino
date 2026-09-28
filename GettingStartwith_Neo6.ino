@@ -90,7 +90,7 @@ void loop()
     Serial.println(gps.course.deg());
 
     Serial.print("Cardinal : ");
-    Serial.println(gps.course.cardinal());
+    Serial.println(TinyGPSPlus::cardinal(gps.course.deg()));
 
 
 
