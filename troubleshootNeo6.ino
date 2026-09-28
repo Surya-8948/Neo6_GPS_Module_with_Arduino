@@ -116,12 +116,12 @@ void printFullReport()
   } 
   else if (silence > 3)
    {
-    Serial.println(F("  ⚠️  WARN: Data aana ruk gaya (3+ sec silence)"));
-    Serial.println(F("  ➜ Wire loose ho sakti hai ya power unstable hai"));
+    Serial.println(F("   WARN: Data aana ruk gaya (3+ sec silence)"));
+    Serial.println(F("   Wire loose ho sakti hai ya power unstable hai"));
   }
    else if (totalBytes > 0) 
   {
-    Serial.println(F("  ✅ PASS: GPS zinda hai, data flow ho raha hai"));
+    Serial.println(F("   PASS: GPS zinda hai, data flow ho raha hai"));
   }
 
   // ============================
@@ -157,11 +157,11 @@ void printFullReport()
 
   if (gpggaCount == 0 && gpgrmcCount == 0 && totalSentences > 10) 
   {
-    Serial.println(F("  ❌ Standard NMEA nahi mil raha"));
-    Serial.println(F("  ➜ Baud rate galat hai, ya module damaged"));
+    Serial.println(F("   Standard NMEA nahi mil raha"));
+    Serial.println(F("   Baud rate galat hai, ya module damaged"));
   } 
   else if (totalSentences > 0) {
-    Serial.println(F("  ✅ PASS: Standard NMEA sentences mil rahe hain"));
+    Serial.println(F("   PASS: Standard NMEA sentences mil rahe hain"));
   }
 
   // ============================
