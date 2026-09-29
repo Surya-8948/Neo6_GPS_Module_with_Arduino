@@ -1,0 +1,213 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GPS Tracker - Surya Bajpai </title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<style>
+/* ===== THEME ===== */
+:root{--bg:#0b1220;--g:#16305a;--card:rgba(255,255,255,.06);--bd:rgba(255,255,255,.12);--tx:#e6edf7;--mu:#8fa1bd;--ac:#38bdf8;--ok:#22c55e;--er:#ef4444;--wn:#f59e0b}
+:root.lt{--bg:#eef2f8;--g:#cfe3ff;--card:rgba(255,255,255,.7);--bd:rgba(0,0,0,.1);--tx:#0f1b2d;--mu:#5a6b85}
+:root:not(.lt) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
+*{box-sizing:border-box;margin:0}
+body{font:14px system-ui,sans-serif;background:radial-gradient(circle at 20% 0,var(--g),var(--bg) 60%);color:var(--tx);height:100dvh;display:flex;overflow:hidden}
+/* ===== LAYOUT ===== */
+#side{width:390px;max-width:100%;display:flex;flex-direction:column;background:var(--card);backdrop-filter:blur(18px);border-right:1px solid var(--bd);z-index:5}
+#map{flex:1;min-height:0;background:var(--bg)}
+header{padding:14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bd)}
+.logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--ac),#6366f1);display:grid;place-items:center}
+.pill{display:block;font-size:11px;padding:3px 9px;border-radius:99px;background:var(--card);border:1px solid var(--bd);margin:2px 0;text-align:center}
+.pill.on{color:var(--ok)}.pill.off{color:var(--er)}.pill.wn{color:var(--wn)}
+nav{display:flex;border-bottom:1px solid var(--bd)}
+nav button{flex:1;padding:10px 2px;background:0;border:0;border-bottom:2px solid transparent;color:var(--mu);cursor:pointer;transition:.2s}
+nav button.a{color:var(--ac);border-color:var(--ac)}
+.pane{display:none;padding:12px;overflow-y:auto;flex:1}.pane.a{display:block;animation:fi .3s}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}}
+/* ===== CARDS / FORMS ===== */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.it{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:8px 10px;transition:.2s}
+.it:hover{transform:translateY(-2px);border-color:var(--ac)}
+.it small{display:block;color:var(--mu);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.it b{font-size:13px;word-break:break-all}
+input,select{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--bd);background:var(--card);color:var(--tx);font:inherit}
+input[type=color]{width:40px;padding:1px;height:32px}input[type=checkbox]{width:auto}
+label{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;color:var(--mu);font-size:12px}
+.row{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.b{padding:8px;border-radius:10px;border:1px solid var(--bd);background:var(--card);color:var(--tx);cursor:pointer;transition:.2s;font:inherit}
+.b:hover{background:var(--ac);color:#04121f;transform:translateY(-1px)}.b.a{background:var(--ac);color:#04121f}
+.b.p{background:linear-gradient(135deg,var(--ac),#6366f1);color:#fff;width:100%}
+.gi{display:grid;grid-template-columns:34px 1fr 62px 22px;gap:5px;align-items:center;padding:6px;border:1px solid var(--bd);border-radius:10px;margin-bottom:6px}
+.gi.s{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}.gi small{grid-column:1/5;color:var(--mu)}
+.ev{padding:7px 9px;border-left:3px solid var(--ac);background:var(--card);border-radius:8px;margin-bottom:6px;animation:fi .3s}
+.ev.s{border-color:var(--ok)}.ev.w{border-color:var(--wn)}.ev.e{border-color:var(--er)}.ev small{color:var(--mu);margin-right:6px}
+/* ===== MAP OVERLAYS ===== */
+#hud,.cmp,#ac,#cm{position:absolute;z-index:500;background:var(--card);backdrop-filter:blur(14px);border:1px solid var(--bd);color:var(--tx)}
+#hud{left:10px;bottom:28px;padding:8px 14px;border-radius:14px;display:flex;align-items:baseline;gap:6px}#hud b{font-size:26px}#hud span{color:var(--ac);margin-left:8px}
+.cmp{position:relative!important;width:46px;height:46px;border-radius:50%;display:grid;place-items:center}
+.cmp i{position:absolute;width:3px;height:36px;background:linear-gradient(var(--er) 50%,#94a3b8 50%);border-radius:3px;transition:transform .8s}.cmp span{position:absolute;top:1px;font-size:9px}
+#ac{right:10px;bottom:90px;padding:8px 12px;border-radius:10px;cursor:pointer}#ac.a{background:var(--ac);color:#04121f}
+#cm{display:none;border-radius:12px;padding:4px;min-width:150px}#cm div{padding:7px 12px;cursor:pointer;border-radius:8px}#cm div:hover{background:var(--ac);color:#04121f}
+#toasts{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1200;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{padding:9px 14px;border-radius:12px;background:rgba(15,23,42,.92);backdrop-filter:blur(10px);border:1px solid var(--bd);border-left:4px solid var(--ac);color:#fff;animation:fi .3s}
+.toast.s{border-left-color:var(--ok)}.toast.w{border-left-color:var(--wn)}.toast.e{border-left-color:var(--er)}
+#ld{position:absolute;inset:0;z-index:1500;background:var(--bg);display:grid;place-items:center;transition:opacity .6s}#ld.h{opacity:0;pointer-events:none}
+.sp{width:46px;height:46px;border:4px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:r 1s linear infinite}@keyframes r{to{transform:rotate(360deg)}}
+.veh{width:28px;height:28px;transition:transform .5s}.veh i{display:block;margin:2px auto;border:10px solid transparent;border-bottom:26px solid var(--ac);border-top:0;filter:drop-shadow(0 0 6px var(--ac))}
+.vx{width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px #000}
+@media(max-width:800px){body{flex-direction:column-reverse}#side{width:100%;height:50dvh;border:0}}
+</style></head><body>
+<!-- ===== SIDEBAR ===== -->
+<aside id="side">
+<header><div class="logo"></div><div style="flex:1"><b id="tt">GPS Tracker</b><br><small style="color:var(--mu)">ESP8266 / ESP32 · MQTT</small></div><div><span id="pc" class="pill off">Offline</span><span id="pm" class="pill off">MQTT Off</span></div></header>
+<nav><button class="a" data-t="live" data-i="live">Live</button><button data-t="fence" data-i="fence">Geofence</button><button data-t="ev" data-i="ev">Events</button><button data-t="set" data-i="set">Settings</button></nav>
+<section class="pane a" id="p-live"><div class="grid" id="lg"></div></section>
+<section class="pane" id="p-fence">
+<div class="row"><input type="color" id="gc" value="#38bdf8"><input type="number" id="gr" value="250" min="5" title="Radius / route corridor (m)"><small>m</small></div>
+<div class="tools" id="tools">
+<button class="b tb" data-m="home">🏠 Set Home</button><button class="b tb" data-m="office">🏢 Set Office</button>
+<button class="b tb" data-m="circle">⭕ Add Circle</button><button class="b tb" data-m="polygon">⬠ Add Polygon</button>
+<button class="b tb" data-m="route">➖ Add Route</button><button class="b" data-a="fin">✔ Finish Polygon</button>
+<button class="b" data-a="undo">↶ Undo Point</button><button class="b" data-a="redo">↷ Redo</button>
+<button class="b" data-a="del">🗑 Delete Selected</button><button class="b" data-a="clr">✖ Clear All</button>
+<button class="b" data-a="save">💾 Save</button><button class="b" data-a="load">📂 Load</button>
+<button class="b p" data-a="send" style="grid-column:1/3">⬆ Send to device (MQTT)</button></div>
+<div id="gl"></div></section>
+<section class="pane" id="p-ev"><button class="b" id="ce" style="margin-bottom:8px">Clear log</button><div id="evl"></div></section>
+<section class="pane" id="p-set"><div id="sf"></div><button class="b p" id="sv">Save &amp; Connect</button><button class="b" id="dm" style="width:100%;margin-top:8px">▶ Toggle demo data</button></section>
+</aside>
+<!-- ===== MAP ===== -->
+<div id="map"><div id="hud"><b id="hs">0</b><small id="hu">km/h</small><span id="hh">0°</span></div><button id="ac" class="a">⌖ Auto-center</button>
+<div id="cm"><div data-a="home">Set Home</div><div data-a="circle">Create Circle</div><div data-a="polygon">Create Polygon</div><div data-a="route">Create Route</div><div data-a="del">Delete Object</div></div>
+<div id="toasts"></div><div id="ld"><div class="sp"></div></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.10.1/mqtt.min.js"></script>
+<script>
+/* ===== HELPERS & SETTINGS ===== */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],LS=localStorage,J=JSON;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const T={en:{live:'Live',fence:'Geofence',ev:'Events',set:'Settings'},hi:{live:'लाइव',fence:'जियोफेंस',ev:'घटनाएँ',set:'सेटिंग्स'},es:{live:'En vivo',fence:'Geocerca',ev:'Eventos',set:'Ajustes'}};
+let S={host:'broker.hivemq.com',port:8884,path:'/mqtt',ssl:1,user:'',pass:'',topic:'gps/tracker01',name:'GPS Tracker',interval:5,maxSpeed:80,lowBat:3.5,units:'m',lang:'en',dark:1};
+try{Object.assign(S,J.parse(LS.gpsS))}catch(e){}
+const unit=()=>S.units=='m'?{s:'km/h',k:1,a:'m',ak:1,d:'km'}:{s:'mph',k:.621371,a:'ft',ak:3.28084,d:'mi'};
+/* geometry: haversine, point-to-segment, point-in-polygon */
+const hav=(a,b)=>{const r=Math.PI/180,x=(b[0]-a[0])*r,y=(b[1]-a[1])*r,h=Math.sin(x/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(y/2)**2;return 12742000*Math.asin(Math.sqrt(h))};
+const dSeg=(p,a,b)=>{const k=Math.cos(p[0]*Math.PI/180),X=q=>[(q[1]-p[1])*k*111320,(q[0]-p[0])*111320],A=X(a),B=X(b),dx=B[0]-A[0],dy=B[1]-A[1],l=dx*dx+dy*dy,t=l?Math.max(0,Math.min(1,-(A[0]*dx+A[1]*dy)/l)):0;return Math.hypot(A[0]+t*dx,A[1]+t*dy)};
+const pip=(p,v)=>{let c=0;for(let i=0,j=v.length-1;i<v.length;j=i++)if((v[i][0]>p[0])!=(v[j][0]>p[0])&&p[1]<(v[j][1]-v[i][1])*(p[0]-v[i][0])/(v[j][0]-v[i][0])+v[i][1])c=!c;return c};
+const len=g=>g.p.slice(1).reduce((s,q,i)=>s+hav(g.p[i],q),0);
+const inside=(g,p)=>g.t=='circle'?hav(p,g.p[0])<=g.r:g.t=='polygon'?pip(p,g.p):g.p.slice(1).some((q,i)=>dSeg(p,g.p[i],q)<=g.r);
+/* toast + event log */
+function toast(m,t='i'){const e=document.createElement('div');e.className='toast '+t;e.textContent=m;$('#toasts').append(e);setTimeout(()=>e.remove(),3500)}
+const EV=[];
+function evt(type,msg,l='i'){EV.unshift({t:new Date().toLocaleTimeString(),type,msg,l});EV.length=Math.min(EV.length,100);renderEv();toast(type+': '+msg,l)}
+const renderEv=()=>$('#evl').innerHTML=EV.map(e=>`<div class="ev ${e.l}"><small>${e.t}</small><b>${e.type}</b> ${esc(e.msg)}</div>`).join('')||'<small>No events</small>';
+const FL={};const flag=(k,c,t,m,l)=>{if(c&&!FL[k])evt(t,m,l);FL[k]=c};
+
+/* ===== LIVE INFO CARDS ===== */
+const F=[['name','Device Name'],['id','Device ID'],['conn','Connection'],['mq','MQTT'],['rssi','WiFi RSSI'],['ip','IP Address'],['fw','Firmware'],['lat','Latitude'],['lng','Longitude'],['alt','Altitude'],['spd','Speed'],['hdg','Heading'],['acc','GPS Accuracy'],['sat','Satellites'],['time','Last Update'],['bat','Battery'],['tmp','Temperature']];
+$('#lg').innerHTML=F.map(([k,l])=>`<div class="it"><small>${l}</small><b id="v_${k}">--</b></div>`).join('');
+const set=(k,x)=>$('#v_'+k).textContent=x,w=(k,x,s='')=>set(k,x==null?'--':x+s);
+const pill=(id,k,t,c)=>{const e=$(id);e.textContent=t;e.className='pill '+c;set(k,t)};
+
+/* ===== MAP (Leaflet + OpenStreetMap) ===== */
+const map=L.map('map',{doubleClickZoom:false}).setView([26.9124,80.9432],13);
+L.TileLayer.prototype.options.referrerPolicy = 'strict-origin-when-cross-origin';
+L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{
+    maxZoom:20,
+    subdomains:['mt0','mt1','mt2','mt3']
+}).addTo(map);
+new(L.Control.extend({onAdd:()=>{const d=L.DomUtil.create('div','cmp');d.innerHTML='<i id="nd"></i><span>N</span>';return d}}))({position:'topright'}).addTo(map);
+const path=L.polyline([],{color:'#38bdf8',weight:3,opacity:.8}).addTo(map);
+let mk,cur,anim,auto=1;
+const dir=h=>['N','NE','E','SE','S','SW','W','NW'][Math.round(h/45)%8];
+const setAuto=v=>{auto=v;$('#ac').classList.toggle('a',v)};
+$('#ac').onclick=()=>{setAuto(!auto);if(auto&&cur)map.panTo(cur)};map.on('dragstart',()=>setAuto(0));
+/* smooth marker animation (900 ms interpolation) */
+function moveTo(ll,h){
+ if(!mk){mk=L.marker(ll,{icon:L.divIcon({className:'',html:'<div class="veh"><i></i></div>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(map).bindPopup('');map.setView(ll,16)}
+ const a=cur||ll,t0=performance.now();cancelAnimationFrame(anim);
+ (function f(t){const k=Math.min(1,(t-t0)/900),p=[a[0]+(ll[0]-a[0])*k,a[1]+(ll[1]-a[1])*k];mk.setLatLng(p);if(auto)map.panTo(p,{animate:false});if(k<1)anim=requestAnimationFrame(f)})(t0);
+ cur=ll;mk._icon.firstChild.style.transform='rotate('+h+'deg)';$('#nd').style.transform='rotate('+h+'deg)'}
+
+/* ===== GEOFENCES ===== */
+let G=[],nid=1,selId=0,mode='',tmp=[],rdo=[],tl,ctx;
+const vx=c=>L.divIcon({className:'',html:`<div class="vx" style="background:${c}"></div>`,iconSize:[14,14]});
+function draw(g){
+ if(g.L)map.removeLayer(g.L);
+ const o={color:g.c,weight:g.id==selId?4:2,fillOpacity:.15,dashArray:g.on?null:'6'},fg=L.featureGroup();
+ const s=g.t=='circle'?L.circle(g.p[0],{...o,radius:g.r}):g.t=='polygon'?L.polygon(g.p,o):L.polyline(g.p,o);
+ s.bindTooltip(esc(g.n),{sticky:true}).on('click',()=>{if(!mode)sel(g.id)});fg.addLayer(s);
+ /* vertex markers are draggable only for the selected object */
+ if(g.id==selId)g.p.forEach((q,i)=>fg.addLayer(L.marker(q,{draggable:true,icon:vx(g.c)}).on('dragend',e=>{const l=e.target.getLatLng();g.p[i]=[l.lat,l.lng];draw(g);persist();pub(cfg(g));toast('Updated '+g.n)})));
+ g.L=fg.addTo(map)}
+function add(t,p,o={}){const g={id:nid++,t,p,n:o.n||t+' '+nid,c:o.c||$('#gc').value,r:t=='polygon'?0:+$('#gr').value||100,on:1};G.push(g);draw(g);return g}
+function sel(id){selId=id;G.forEach(draw);list()}
+function list(){const u=unit();$('#gl').innerHTML=G.map(g=>`<div class="gi ${g.id==selId?'s':''}" data-id="${g.id}"><input type="color" value="${g.c}" data-k="c"><input value="${esc(g.n)}" data-k="n"><input type="number" value="${g.r}" data-k="r" ${g.t=='polygon'?'disabled':''}><input type="checkbox" data-k="on" ${g.on?'checked':''}><small>${g.t}${g.t=='route'?' · '+(len(g)/1000*u.k).toFixed(2)+' '+u.d:''}</small></div>`).join('')||'<small>No geofences</small>'}
+$('#gl').onchange=e=>{const g=G.find(x=>x.id==e.target.closest('.gi').dataset.id),k=e.target.dataset.k;g[k]=k=='on'?+e.target.checked:k=='r'?+e.target.value:e.target.value;draw(g);persist();pub(cfg(g))};
+$('#gl').onclick=e=>{const r=e.target.closest('.gi');if(r&&!e.target.dataset.k)sel(+r.dataset.id)};
+const persist=()=>LS.gpsG=J.stringify(G.map(({L,f,...g})=>g));
+function load(){G.forEach(g=>g.L&&map.removeLayer(g.L));try{G=J.parse(LS.gpsG||'[]')}catch(e){G=[]}nid=Math.max(0,...G.map(g=>g.id))+1;selId=0;G.forEach(draw);list()}
+const del=id=>{const g=G.find(x=>x.id==id);if(!g)return;g.L&&map.removeLayer(g.L);G=G.filter(x=>x!=g);selId=0;list();persist()};
+const clearAll=()=>{G.forEach(g=>g.L&&map.removeLayer(g.L));G=[];selId=0;list();persist()};
+/* ===== DRAW TOOLS: modes, undo/redo, click handling ===== */
+const HINT={home:'Click map to set Home',office:'Click map to set Office',circle:'Click map for circle center',polygon:'Click points, then Finish (Enter)',route:'Click route start, then end'};
+function setMode(m){mode=m;tmp=[];rdo=[];prev();$$('.tb').forEach(b=>b.classList.toggle('a',b.dataset.m==m));map.getContainer().style.cursor=m?'crosshair':'';if(m)toast(HINT[m])}
+function prev(){if(tl)map.removeLayer(tl);tl=tmp.length?L.featureGroup([L.polyline(tmp,{color:$('#gc').value,dashArray:'4'}),...tmp.map(p=>L.circleMarker(p,{radius:5}))]).addTo(map):null}
+const fin=g=>{setMode('');sel(g.id);persist();pub(cfg(g))};
+function addPt(ll){const p=[ll.lat,ll.lng];
+ if(mode=='home'||mode=='office'){const n=mode=='home'?'Home':'Office';G.filter(g=>g.n==n).forEach(g=>del(g.id));fin(add('circle',[p],{n,c:mode=='home'?'#22c55e':'#f59e0b'}))}
+ else if(mode=='circle')fin(add('circle',[p]));
+ else if(mode=='polygon'){tmp.push(p);rdo=[];prev()}
+ else if(mode=='route'){tmp.push(p);rdo=[];prev();if(tmp.length==2)fin(add('route',tmp))}}
+const finish=()=>mode=='polygon'?tmp.length<3?toast('Need at least 3 points','w'):fin(add('polygon',tmp)):0;
+const undo=()=>{if(tmp.length){rdo.push(tmp.pop());prev()}},redo=()=>{if(rdo.length){tmp.push(rdo.pop());prev()}};
+map.on('click',e=>{$('#cm').style.display='none';if(mode)addPt(e.latlng)});map.on('movestart',()=>$('#cm').style.display='none');
+$('#tools').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.m)return setMode(mode==b.dataset.m?'':b.dataset.m);({fin:finish,undo,redo,del:()=>del(selId),clr:clearAll,save:()=>{persist();toast('Saved in browser','s')},load,send:sendAll}[b.dataset.a])()};
+document.onkeydown=e=>{if(e.target.tagName=='INPUT')return;if(e.key=='Enter')finish();if(e.key=='Escape')setMode('')};
+/* right-click context menu */
+L.DomEvent.disableClickPropagation($('#cm'));
+map.on('contextmenu',e=>{ctx=e.latlng;$('#cm').style.cssText='display:block;left:'+e.containerPoint.x+'px;top:'+e.containerPoint.y+'px'});
+$('#cm').onclick=e=>{const a=e.target.dataset.a;$('#cm').style.display='none';if(!a)return;
+ if(a=='del'){const g=G.find(g=>inside(g,[ctx.lat,ctx.lng]))||G.find(g=>g.id==selId);return g?del(g.id):toast('No object here','w')}
+ setMode(a);addPt(ctx)};
+
+/* ===== MQTT ===== */
+let cl,lastRx=0,off=0;
+const cfg=g=>{const b={type:g.t,id:g.id,name:g.n,color:g.c,enabled:g.on};if(g.t=='circle'){b.lat=g.p[0][0];b.lng=g.p[0][1];b.radius=g.r}else{b.points=g.p;b.radius=g.r;if(g.t=='route')b.distance=Math.round(len(g))}return b};
+const pub=o=>{if(cl&&cl.connected){cl.publish(S.topic+'/cfg',J.stringify(o),{retain:true});return 1}};
+function sendAll(){if(!(cl&&cl.connected))return toast('MQTT not connected','w');G.forEach(g=>pub(cfg(g)));pub({type:'settings',interval:+S.interval,maxSpeed:+S.maxSpeed,lowBat:+S.lowBat,name:S.name});toast('Config sent ('+G.length+' objects)','s')}
+function conn(){
+ if(cl)cl.end(true);if(typeof mqtt=='undefined')return toast('MQTT library not loaded (check internet)','e');
+ pill('#pm','mq','MQTT Connecting','wn');
+ cl=mqtt.connect((+S.ssl?'wss':'ws')+'://'+S.host+':'+S.port+S.path,{username:S.user||undefined,password:S.pass||undefined,clientId:'dash_'+Math.random().toString(16).slice(2,8),reconnectPeriod:5000,connectTimeout:8000});
+ cl.on('connect',()=>{pill('#pm','mq','MQTT Connected','on');cl.subscribe(S.topic);toast('MQTT connected','s')});
+ cl.on('close',()=>pill('#pm','mq','MQTT Off','off'));cl.on('error',e=>toast('MQTT: '+e.message,'e'));
+ cl.on('message',(t,m)=>{try{onData(J.parse(m))}catch(e){}})}
+/* ===== TELEMETRY HANDLER + EVENT ENGINE ===== */
+function onData(d){
+ lastRx=Date.now();const u=unit();if(off){off=0;evt('Device Online','Data resumed','s')}
+ w('name',d.name||S.name);w('id',d.id);w('rssi',d.rssi,' dBm');w('ip',d.ip);w('fw',d.fw);w('sat',d.sat);w('acc',d.acc,' m');w('time',d.time||new Date().toLocaleString());
+ w('bat',d.bat!=null?(+d.bat).toFixed(2):null,' V');w('tmp',d.temp,' °C');
+ const ok=d.lat!=null&&d.lng!=null&&(d.sat==null||d.sat>=4)&&d.fix!==0;
+ flag('gps',!ok,'GPS Lost','No valid GPS fix','e');flag('bat',d.bat!=null&&d.bat<S.lowBat,'Low Battery',d.bat+' V','w');
+ pill('#pc','conn',ok?'Online':'No GPS',ok?'on':'wn');if(!ok)return;
+ const ll=[+d.lat,+d.lng],sp=+d.speed||0,h=+d.heading||0;
+ w('lat',ll[0].toFixed(6));w('lng',ll[1].toFixed(6));w('alt',d.alt!=null?(d.alt*u.ak).toFixed(1):null,' '+u.a);w('spd',(sp*u.k).toFixed(1),' '+u.s);w('hdg',h,'° '+dir(h));
+ $('#hs').textContent=(sp*u.k).toFixed(0);$('#hu').textContent=u.s;$('#hh').textContent=h+'° '+dir(h);
+ moveTo(ll,h);path.addLatLng(ll);const a=path.getLatLngs();if(a.length>1000){a.shift();path.setLatLngs(a)}
+ mk.setPopupContent(`<b>${esc(d.name||S.name)}</b><br>${ll[0].toFixed(5)}, ${ll[1].toFixed(5)}<br>${(sp*u.k).toFixed(1)} ${u.s} · ${h}°`);
+ flag('spd',sp>S.maxSpeed,'Overspeed',sp.toFixed(0)+' km/h','w');
+ G.forEach(g=>{if(!g.on)return;const n=inside(g,ll);if(g.f!=null&&n!=g.f)evt(n?'Entered Geofence':'Exited Geofence',g.n,n?'s':'w');g.f=n})}
+/* offline watchdog */
+setInterval(()=>{if(lastRx&&!off&&Date.now()-lastRx>Math.max(15,S.interval*3)*1000){off=1;pill('#pc','conn','Offline','off');evt('Device Offline','No data received','e')}},1000);
+/* demo data generator (test without hardware) */
+let dt=0;$('#dm').onclick=()=>{if(dt){clearInterval(dt);dt=0;return toast('Demo stopped')}let a=0;toast('Demo started','s');dt=setInterval(()=>{a+=.06;onData({id:'demo01',name:'Demo Tracker',lat:26.9124+Math.sin(a)*.004,lng:80.9432+Math.cos(a)*.004,speed:45+Math.sin(a*3)*40,heading:(((-a*57.3)%360)+360)%360|0,sat:12,alt:120,acc:3.2,rssi:-60,ip:'192.168.1.50',fw:'1.0.0',bat:3.9,temp:31})},1000)};
+
+/* ===== SETTINGS UI ===== */
+const SF=[['host','MQTT Broker'],['port','Port','number'],['path','WebSocket path'],['ssl','Use secure WebSocket (wss)','chk'],['user','Username'],['pass','Password','password'],['topic','Topic'],['name','Device Name'],['interval','Update interval (s)','number'],['maxSpeed','Overspeed limit (km/h)','number'],['lowBat','Low battery (V)','number'],['units','Units','sel:m|Metric,i|Imperial'],['lang','Language','sel:en|English,hi|हिन्दी,es|Español'],['dark','Dark mode','chk']];
+$('#sf').innerHTML=SF.map(([k,l,t='text'])=>`<label>${l}${t=='chk'?`<input type="checkbox" id="s_${k}">`:t.startsWith('sel')?`<select id="s_${k}">${t.slice(4).split(',').map(o=>{const[a,b]=o.split('|');return`<option value="${a}">${b}</option>`}).join('')}</select>`:`<input type="${t}" id="s_${k}">`}</label>`).join('');
+SF.forEach(([k,,t])=>{const e=$('#s_'+k);if(t=='chk')e.checked=!!S[k];else e.value=S[k]});
+function apply(){document.documentElement.classList.toggle('lt',!S.dark);$$('[data-i]').forEach(e=>e.textContent=(T[S.lang]||T.en)[e.dataset.i]);$('#tt').textContent=S.name;list()}
+$('#sv').onclick=()=>{SF.forEach(([k,,t])=>{const e=$('#s_'+k);S[k]=t=='chk'?+e.checked:t=='number'?+e.value:e.value});LS.gpsS=J.stringify(S);apply();conn();toast('Settings saved','s')};
+$$('nav button').forEach(b=>b.onclick=()=>{$$('nav button,.pane').forEach(e=>e.classList.remove('a'));b.classList.add('a');$('#p-'+b.dataset.t).classList.add('a')});
+$('#ce').onclick=()=>{EV.length=0;renderEv()};
+
+/* ===== BOOT ===== */
+apply();load();renderEv();conn();setTimeout(()=>$('#ld').classList.add('h'),1200);
+</script></body></html>
